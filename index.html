@@ -15,7 +15,7 @@
             margin: 0;
             padding: 0;
             -webkit-tap-highlight-color: transparent;
-            user-select: none; /* Buton metni seçilmesin, daha temiz */
+            user-select: none;
         }
 
         body {
@@ -172,7 +172,7 @@
             background-color: #e63e6f;
         }
 
-        /* HAYIR BUTONU: KAYBOLMAZ, SADECE KAÇAR */
+        /* HAYIR BUTONU: ASLA KAYBOLMAZ, SADECE KAÇAR */
         #noBtn {
             background-color: #a2b9b1;
             color: white;
@@ -180,16 +180,18 @@
             font-size: 1.2rem;
             padding: 12px 0;
             border-radius: 60px;
-            transition: none; /* ani hareket için transition kaldırıldı, anlık pozisyon değişimi */
             cursor: pointer;
             box-shadow: 0 6px 14px rgba(0,0,0,0.1);
             will-change: left, top;
             z-index: 100;
-            /* Başlangıçta relative konumda, ancak kaçış anında fixed'e geçer */
             position: relative;
             top: auto;
             left: auto;
             touch-action: manipulation;
+            transition: none;
+            display: inline-block;
+            visibility: visible;
+            opacity: 1;
         }
 
         /* SONUÇ ALANI, SÜRPRİZ ALANI */
@@ -197,34 +199,30 @@
             display: none;
         }
 
-        /* KALP ANİMASYONU (havada uçuşan) */
-        .heart {
+        /* YENİ: SADECE PEMBE KALPLER UÇUŞUYOR - GÖZ YORMASIN (yumuşak geçiş) */
+        .floating-pink-heart {
             position: fixed;
             bottom: -20px;
-            color: #ff8da1;
-            font-size: 28px;
+            color: #ffb7c5;   /* yumuşak pembe */
+            font-size: 26px;
             pointer-events: none;
             z-index: 9999;
-            opacity: 0.85;
-            animation: floatHeart linear forwards;
+            opacity: 0.7;
+            animation: floatSoftPink linear forwards;
         }
 
-        @keyframes floatHeart {
+        @keyframes floatSoftPink {
             0% {
-                transform: translateY(0) scale(0.5) rotate(0deg);
-                opacity: 0.9;
-            }
-            50% {
-                transform: translateY(-40vh) scale(1.1) rotate(15deg);
+                transform: translateY(0) scale(0.6) rotate(0deg);
                 opacity: 0.7;
             }
             100% {
-                transform: translateY(-100vh) scale(0.6) rotate(25deg);
+                transform: translateY(-110vh) scale(0.9) rotate(12deg);
                 opacity: 0;
             }
         }
 
-        /* konfeti patlaması için ekstra gösteriş */
+        /* konfeti canvas */
         .confetti-canvas {
             position: fixed;
             top: 0;
@@ -251,7 +249,7 @@
 </head>
 <body>
 
-    <!-- üç farklı müzik (demo amaçlı soundhelix) -->
+    <!-- müzikler (demo) -->
     <audio id="sarki_romantik" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" loop preload="auto"></audio>
     <audio id="sarki_pop" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" loop preload="auto"></audio>
     <audio id="sarki_huzunlu" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" loop preload="auto"></audio>
@@ -302,14 +300,14 @@
             <button class="btn-social btn-whatsapp" onclick="whatsappPaylas()">🟢 WhatsApp ile Gönder</button>
         </div>
 
-        <!-- 3. asıl sürpriz soru ekranı (hayır butonu kaçan) -->
+        <!-- 3. asıl sürpriz soru ekranı (hayır butonu kaçan ama asla kaybolmayacak) -->
         <div id="surprizSection">
             <h1 id="questionText">Sana bir sorum var 💘</h1>
             <div class="btn-container" id="surprizBtnBox">
                 <button id="yesBtn">Evet ❤️</button>
                 <button id="noBtn">Hayır 😅</button>
             </div>
-            <p style="margin-top: 25px; font-size: 13px; opacity: 0.7;">★ ipucu: hayır butonu kaçıyor ama asla kaybolmuyor ★</p>
+            <!-- İPUCU YAZISI TAMAMEN KALDIRILDI, isteğe göre artık yok -->
         </div>
     </div>
 
@@ -318,7 +316,7 @@
         let uretilenGlobalLink = "";
         let evetMesajiGlobal = "Sözleştik o zaman! 🥰";
         let kalpIntervalId = null;
-        let muzikCalindi = false;    // müzik otomatik başlamasın diye kullanıcı tıklaması beklenecek
+        let muzikCalindi = false;
         let currentMusicType = null;
         let musicElement = null;
 
@@ -328,30 +326,30 @@
         const questionTextEl = document.getElementById('questionText');
         const surprizBox = document.getElementById('surprizSection');
 
-        // ---------- KAÇAN HAYIR BUTONU ( KAYBOLMAZ, SADECE KONUM DEĞİŞTİRİR ) ----------
-        // Bu fonksiyon butonu güvenli bir şekilde ekran içinde rastgele bir fixed konuma taşır.
-        // Kaybolmasını engellemek için buton her zaman görünür alanda kalır.
+        // ---------- KAÇAN HAYIR BUTONU: ASLA KAYBOLMAZ, GÖRÜNÜRLÜĞÜ SÜREKLİ KORUNUR ----------
+        // Bu buton hem mouseover / touch hem de tıklamada kaçar, lakin display:none yapılmaz,
+        // visibility hidden yapılmaz. Ayrıca pozisyon fixed olup ekran dışına çıkmaz.
         function moveNoButtonToRandomPosition() {
             if (!noBtn) return;
             
-            // Buton şu an fixed mi değil mi? fixed olmalı ki ekranda gezinebilsin.
-            // Ama sayfa yüklendiğinde relative olarak duruyor, ilk kaçış anında fixed'e çeviriyoruz.
-            // Ve kesinlikle display: none yapmıyoruz, görünürlüğü asla kapatmıyoruz.
+            // Buton fixed değilse fixed yap ki ekranda serbestçe dolaşabilsin
             if (noBtn.style.position !== 'fixed') {
                 noBtn.style.position = 'fixed';
-                // İlk fixed'e geçişte mevcut konumunu koruyalım, mantıklı bir yerde dursun.
                 const rect = noBtn.getBoundingClientRect();
                 noBtn.style.left = rect.left + 'px';
                 noBtn.style.top = rect.top + 'px';
                 noBtn.style.width = rect.width + 'px';
             }
             
-            // Güvenlik marjı (buton asla taşmasın)
+            // Görünürlük kontrolleri: asla gizlenmesin
+            noBtn.style.display = 'inline-block';
+            noBtn.style.visibility = 'visible';
+            noBtn.style.opacity = '1';
+            
+            // Güvenlik marjları - buton tamamen ekranda kalsın
             const margin = 15;
             const maxX = window.innerWidth - noBtn.offsetWidth - margin;
             const maxY = window.innerHeight - noBtn.offsetHeight - margin;
-            
-            // Minimum değerler (ekrandan dışarı çıkmasın)
             const minX = margin;
             const minY = margin;
             
@@ -368,106 +366,155 @@
                 randomY = minY;
             }
             
-            // Butonun tamamen ekran içinde kalması için clamp
+            // clamp final
             randomX = Math.min(Math.max(randomX, margin), window.innerWidth - noBtn.offsetWidth - margin);
             randomY = Math.min(Math.max(randomY, margin), window.innerHeight - noBtn.offsetHeight - margin);
             
             noBtn.style.left = randomX + 'px';
             noBtn.style.top = randomY + 'px';
-            noBtn.style.transition = 'none';   // anlık hareket, sürüklenme efekti yok
+            noBtn.style.transition = 'none';
         }
         
-        // Çok sık çağrılmaması için throttle uygulayabiliriz ama mouseover ve touch'ta her seferinde fırlatmak yeterli
-        // Ayrıca butona tıklamaya çalışınca da kaçsın (tıklama anında uzaklaşsın)
+        // Kaçış fonksiyonu: hareket ettir ve hiçbir şekilde gizleme
         function handleNoBtnEscape(e) {
             if(e) {
                 e.preventDefault();
                 e.stopPropagation();
             }
-            moveNoButtonToRandomPosition();
-            // Ekstra küçük dokunsal titreşim hissi (opsiyonel)
-            if (navigator.vibrate) navigator.vibrate(20);
+            // butonun görünür olduğundan emin ol
+            if (noBtn) {
+                noBtn.style.display = 'inline-block';
+                noBtn.style.visibility = 'visible';
+                noBtn.style.opacity = '1';
+                moveNoButtonToRandomPosition();
+            }
+            if (navigator.vibrate) navigator.vibrate(15);
         }
         
-        // Buton fareyle üzerine gelince ve dokunmatikte her dokunuşta kaçış
+        // Hayır butonuna etkileşim ekleniyor, kaybolma durumuna karşı periyodik kontrol
         if (noBtn) {
-            // Mouse ve touch eventleri ekliyoruz
+            // Tüm kaçış olayları
             noBtn.addEventListener('mouseover', handleNoBtnEscape);
             noBtn.addEventListener('click', handleNoBtnEscape);
             noBtn.addEventListener('touchstart', handleNoBtnEscape, { passive: false });
             noBtn.addEventListener('touchend', handleNoBtnEscape, { passive: false });
-            // butonun kaybolmasını engellemek için kesinlikle display style'ı değiştirmiyoruz.
-            // Ayrıca ekran boyutu değişirse (orientation) butonun hala görünür olduğundan emin olalım
+            
+            // Ekstra güvenlik: her saniye buton varsa görünürlüğünü koru (kaybolma ihtimaline karşı sıfırla)
+            setInterval(() => {
+                if (surprizBox && surprizBox.style.display === 'block' && noBtn) {
+                    // Eğer buton herhangi bir şekilde gizlenmişse, düzelt
+                    const computedStyle = window.getComputedStyle(noBtn);
+                    if (computedStyle.display === 'none' || noBtn.style.display === 'none') {
+                        noBtn.style.display = 'inline-block';
+                    }
+                    if (computedStyle.visibility === 'hidden' || noBtn.style.visibility === 'hidden') {
+                        noBtn.style.visibility = 'visible';
+                    }
+                    if (computedStyle.opacity === '0' || noBtn.style.opacity === '0') {
+                        noBtn.style.opacity = '1';
+                    }
+                    // Fixed değilse ve sürpriz ekranı aktifse fixed yapalım, kaçış mekanizması çalışsın
+                    if (noBtn.style.position !== 'fixed') {
+                        noBtn.style.position = 'fixed';
+                        // rastgele bir pozisyona taşı
+                        const randLeft = Math.min(Math.max(20, window.innerWidth - noBtn.offsetWidth - 20), 20);
+                        const randTop = Math.min(Math.max(80, window.innerHeight - noBtn.offsetHeight - 40), 80);
+                        noBtn.style.left = randLeft + 'px';
+                        noBtn.style.top = randTop + 'px';
+                    }
+                }
+            }, 800);
+            
+            // yeniden boyutlandırmada konumu güncelle ama asla kaybolmasın
             window.addEventListener('resize', () => {
-                if (noBtn && noBtn.style.position === 'fixed' && surprizBox.style.display === 'block') {
-                    // yeniden konumlandır ki ekran dışında kalmasın
+                if (surprizBox && surprizBox.style.display === 'block' && noBtn && noBtn.style.position === 'fixed') {
                     moveNoButtonToRandomPosition();
                 }
             });
         }
         
-        // ----- EVET BUTONU FONKSİYONU -----
+        // ----- EVET BUTONU: İpucu yazısı yok, sadece pembe kalpler ve konfeti (göz yormayan)
+        function createSoftPinkHeart() {
+            const heart = document.createElement('div');
+            heart.classList.add('floating-pink-heart');
+            heart.innerHTML = '❤️';
+            // rastgele pembe tonu için biraz varyasyon
+            const pinkHues = ['#ffb7c5', '#ffc0d0', '#ffb0c0', '#ffa5b9'];
+            heart.style.color = pinkHues[Math.floor(Math.random() * pinkHues.length)];
+            const size = Math.random() * 18 + 20; // 20-38px arası, yumuşak
+            heart.style.fontSize = size + 'px';
+            heart.style.left = Math.random() * 90 + 5 + 'vw';
+            heart.style.animationDuration = (Math.random() * 3 + 3.5) + 's'; // yavaş süzülme
+            heart.style.animationDelay = '0s';
+            heart.style.opacity = Math.random() * 0.5 + 0.4; // 0.4-0.9 arası yumuşak
+            document.body.appendChild(heart);
+            setTimeout(() => { if(heart && heart.remove) heart.remove(); }, 5000);
+        }
+        
+        // evet butonuna tıklayınca coşku + pembe kalp dalgası
         function evetTiklandi() {
-            // Kalp üretimini durdur
-            if (kalpIntervalId) clearInterval(kalpIntervalId);
+            // Sürekli akan kalpleri durdur (soru ekranındaki arka plan kalpleri)
+            if (kalpIntervalId) {
+                clearInterval(kalpIntervalId);
+                kalpIntervalId = null;
+            }
             
             // Soru metnini başarı mesajına çevir
             questionTextEl.innerText = evetMesajiGlobal;
             
-            // Hayır butonunu tamamen kaldır (evet dendi, oyun bitti)
-            if (noBtn && noBtn.parentNode) noBtn.remove();
-            
-            // Arka planı daha romantik yap
-            document.body.style.backgroundColor = '#ffd1dc';
-            
-            // Konfeti yağdır
-            canvasConfetti({ particleCount: 220, spread: 100, origin: { y: 0.6 }, startVelocity: 18, colors: ['#ff477e', '#ffb3c6', '#ff9eb5'] });
-            canvasConfetti({ particleCount: 80, spread: 130, origin: { y: 0.3, x: 0.2 }, startVelocity: 25 });
-            canvasConfetti({ particleCount: 80, spread: 130, origin: { y: 0.5, x: 0.8 }, startVelocity: 25 });
-            
-            // Bol bol kalp fırlat (coşku)
-            for (let i = 0; i < 70; i++) {
-                setTimeout(() => createFloatingHeart(true), i * 50);
+            // Hayır butonunu kaldır (evet dendi, oyun bitti, hayır butonu artık gerek yok)
+            if (noBtn && noBtn.parentNode) {
+                noBtn.remove();
             }
             
-            // buton container'ında fazladan yazı belirebilir (keyif)
+            // Arka planı daha romantik ve pastel yap (göz yormasın)
+            document.body.style.backgroundColor = '#ffeef2';
+            
+            // Konfeti (neşeli)
+            canvasConfetti({ particleCount: 180, spread: 85, origin: { y: 0.6 }, startVelocity: 16, colors: ['#ffb3c6', '#ff8da1', '#ffc0d0'] });
+            canvasConfetti({ particleCount: 60, spread: 100, origin: { y: 0.4, x: 0.3 }, startVelocity: 20, colors: ['#ff9eb5', '#ffb7c5'] });
+            canvasConfetti({ particleCount: 60, spread: 100, origin: { y: 0.5, x: 0.7 }, startVelocity: 20, colors: ['#ffa5b9', '#ffc4d4'] });
+            
+            // Bol bol yumuşak pembe kalpler uçuştur (göz yormayan)
+            for (let i = 0; i < 120; i++) {
+                setTimeout(() => createSoftPinkHeart(), i * 45);
+            }
+            // Ekstra birkaç dalga kalp
+            setTimeout(() => {
+                for (let i = 0; i < 60; i++) {
+                    setTimeout(() => createSoftPinkHeart(), i * 30);
+                }
+            }, 800);
+            
+            // buton kutusuna mutlu mesaj (isteğe bağlı ekstra)
             const container = document.querySelector('.btn-container');
             if (container && !document.getElementById('extraMessage')) {
                 const extraDiv = document.createElement('div');
                 extraDiv.id = 'extraMessage';
-                extraDiv.style.marginTop = '20px';
-                extraDiv.style.fontSize = '1.3rem';
+                extraDiv.style.marginTop = '24px';
+                extraDiv.style.fontSize = '1.4rem';
                 extraDiv.style.fontWeight = 'bold';
-                extraDiv.style.color = '#ff2e63';
-                extraDiv.innerText = '✨🎉 Harika! 🎉✨';
+                extraDiv.style.color = '#ff6b8f';
+                extraDiv.style.background = 'rgba(255,230,240,0.7)';
+                extraDiv.style.padding = '8px 18px';
+                extraDiv.style.borderRadius = '80px';
+                extraDiv.innerText = '🌸💖 Çok mutluyum! 💖🌸';
                 container.appendChild(extraDiv);
-                setTimeout(() => { if(extraDiv) extraDiv.style.opacity = '0.8'; }, 100);
+                setTimeout(() => { if(extraDiv) extraDiv.style.opacity = '0.9'; }, 50);
             }
         }
         
-        // ---- Kalp oluşturma (havada süzülen)
-        function createFloatingHeart(isBigWave = false) {
-            const heart = document.createElement('div');
-            heart.classList.add('heart');
-            heart.innerHTML = '❤️';
-            const size = isBigWave ? (Math.random() * 25 + 20) : (Math.random() * 18 + 14);
-            heart.style.fontSize = size + 'px';
-            heart.style.left = Math.random() * 95 + 'vw';
-            heart.style.animationDuration = (Math.random() * 3 + 3) + 's';
-            heart.style.animationDelay = '0s';
-            document.body.appendChild(heart);
-            setTimeout(() => { if(heart && heart.remove) heart.remove(); }, 4500);
-        }
-        
-        // Ortamda sürekli kalpçik (soru ekranı gösterilirken)
-        function startBackgroundHearts() {
+        // Soru ekranı görünürken periyodik yumuşak pembe kalpler (sadece hafif dokunuş, ipucu yazısı yok)
+        function startSoftPinkHeartsBackground() {
             if (kalpIntervalId) clearInterval(kalpIntervalId);
             kalpIntervalId = setInterval(() => {
-                // sadece sürpriz bölüm görünürken kalpler uçuşsun
                 if (surprizBox && surprizBox.style.display === 'block') {
-                    createFloatingHeart(false);
+                    // Sadece 1-2 tane yumuşak kalp ekleyelim, gözü yormasın
+                    if (Math.random() > 0.6) {
+                        createSoftPinkHeart();
+                    }
                 }
-            }, 1300);
+            }, 2000);
         }
         
         // Müzik başlatma (kullanıcı etkileşimi ile)
@@ -485,9 +532,8 @@
                 musicElement.currentTime = 0;
             }
             musicElement = audio;
-            musicElement.volume = 0.35;
+            musicElement.volume = 0.3;
             musicElement.loop = true;
-            // sadece bir kullanıcı tıklaması ile çal
             const playMusicOnInteraction = () => {
                 if (musicElement && musicElement.paused) {
                     musicElement.play().catch(e => console.log("müzik başlatılamadı"));
@@ -554,15 +600,17 @@
                 questionTextEl.innerText = soruMetni;
                 if (cevap) evetMesajiGlobal = decodeURIComponent(cevap);
                 
-                // Hayır butonunun başlangıç pozisyonunu ayarla (relative, kutusunda dursun)
+                // Hayır butonunun başlangıç pozisyonu ve görünürlük ayarı (asla kaybolmaz)
                 if (noBtn) {
                     noBtn.style.position = 'relative';
                     noBtn.style.left = 'auto';
                     noBtn.style.top = 'auto';
-                    noBtn.style.display = 'inline-block'; // görünür olsun
+                    noBtn.style.display = 'inline-block';
+                    noBtn.style.visibility = 'visible';
+                    noBtn.style.opacity = '1';
                 }
-                // Kaçış mekanizması aktif (eventler zaten yukarıda tanımlandı)
-                startBackgroundHearts();
+                // Arka planda yumuşak pembe kalpler başlat (göz yormayan)
+                startSoftPinkHeartsBackground();
                 
                 // Müzik ayarla
                 if (sarkiTipi && sarkiTipi !== 'yok') {
@@ -570,14 +618,9 @@
                     initMusic(sarkiTipi);
                 }
                 
-                // buton için ekstra: eğer buton kaybolma durumu olursa diye gözlemci, ama kaybolmaması için asla display none yapmıyoruz.
-                // Ayrıca her 5 saniyede bir butonun varlığını kontrol et (gereksiz ama ekstra önlem)
-                setInterval(() => {
-                    if (surprizBox && surprizBox.style.display === 'block' && noBtn && noBtn.parentNode && noBtn.style.display === 'none') {
-                        // garip bir durumda gizlenmişse tekrar görünür yap
-                        noBtn.style.display = 'inline-block';
-                    }
-                }, 3000);
+                // Güvenlik: noBtn'un display değerini sürekli kontrol etmek için extra intervaller yukarıda var.
+                // Ayrıca buton container içinde kalması için herhangi bir müdahale yapmıyoruz.
+                // İpucu yazısı tamamen kaldırıldığı için alt kısımda ek metin yok.
             }
         }
         
@@ -589,39 +632,23 @@
         // Sayfa yüklendiğinde parametreleri kontrol et
         window.addEventListener('DOMContentLoaded', () => {
             loadSurpriseFromURL();
-            // Eğer parametre yoksa form ekranı zaten görünür durumda.
-            // Hayır butonunun ilk anda container içinde rahat durması için relative ayarı
+            // Eğer parametre yoksa form ekranı görünür.
             if (noBtn && surprizBox.style.display !== 'block') {
-                // sadece ihtiyaç halinde
                 noBtn.style.position = 'relative';
             }
         });
         
-        // Ekran döndüğünde eğer sürpriz ekranı aktif ve hayır butonu fixed ise yeniden konumlandır
+        // Ekran döndüğünde ve sürpriz aktif ise hayır butonunun konumunu yeniden düzenle (kaybolmaz)
         window.addEventListener('orientationchange', () => {
             setTimeout(() => {
                 if (surprizBox && surprizBox.style.display === 'block' && noBtn && noBtn.style.position === 'fixed') {
                     moveNoButtonToRandomPosition();
                 }
-            }, 80);
+            }, 100);
         });
         
-        // butonun kaybolmasını engellemek için bir "canlılık" kontrolü: her 4 saniyede bir buton fixed ise görünürlüğü kontrol et
-        setInterval(() => {
-            if (surprizBox && surprizBox.style.display === 'block' && noBtn) {
-                const style = window.getComputedStyle(noBtn);
-                if (style.display === 'none') {
-                    noBtn.style.display = 'flex';
-                }
-                if (style.visibility === 'hidden') {
-                    noBtn.style.visibility = 'visible';
-                }
-                // opsiyonel: eğer buton fixed değil ve kaçışlar çalışmıyorsa dönüştür ama gerek yok
-            }
-        }, 2500);
-        
-        // yardımcı: global değişkenlerin dışarı sızmaması için
-        console.log("💖 Süper romantik sayfa hazır — Hayır butonu asla kaybolmaz, sadece naz yapar!");
+        // Konsola romantik mesaj
+        console.log("💖 Sayfa eklendi: Hayır butonu asla kaybolmaz, sadece kaçar; evet sonrası pembe kalpler uçuşur, ipucu yazısı yok.");
     </script>
 </body>
 </html>
