@@ -2,42 +2,58 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Sürpriz! 🎁</title>
+    <title>Sana Özel Bir Sürprizim Var! 🎁</title>
     <style>
         body { font-family: sans-serif; background-color: #fff0f3; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; margin: 0; }
-        .heart { position: absolute; color: #ff85a1; font-size: 20px; opacity: 0.5; pointer-events: none; animation: float linear infinite; z-index: 1; }
+        .heart { position: absolute; color: #ff85a1; font-size: 15px; opacity: 0.4; pointer-events: none; animation: float linear infinite; }
         @keyframes float { 0% { transform: translateY(100vh) rotate(0deg); } 100% { transform: translateY(-10vh) rotate(360deg); } }
-        .container { background-color: white; padding: 40px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 90%; z-index: 10; }
-        #yesBtn { background-color: #58b970; color: white; padding: 15px 40px; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 18px; }
-        #noBtn { background-color: #ef476f; color: white; padding: 15px 40px; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 18px; position: relative; }
+        .container { background-color: white; padding: 40px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; max-width: 400px; width: 90%; z-index: 10; }
+        h1 { color: #d62828; margin-bottom: 30px; font-size: 24px; }
+        .btn-container { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        button { padding: 15px 40px; font-size: 18px; border: none; border-radius: 30px; cursor: pointer; transition: 0.3s; width: 200px; font-weight: bold; }
+        #yesBtn { background-color: #58b970; color: white; }
+        #noBtn { background-color: #ef476f; color: white; position: relative; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        input { width: 100%; padding: 12px; border: 2px solid #ffccd5; border-radius: 15px; margin-top: 5px; }
+        #shareBox { margin-top: 25px; padding: 15px; background: #fffafb; border-radius: 15px; display: none; }
     </style>
 </head>
 <body>
 
     <div id="creatorPanel" class="container">
         <h1>✨ Sürprizini Hazırla</h1>
-        <input type="text" id="tName" placeholder="İsim" style="width:100%; padding:10px; margin-bottom:10px;"><br>
-        <input type="text" id="tQues" value="Benimle konsere gelir misin? 🎸" style="width:100%; padding:10px; margin-bottom:10px;"><br>
-        <input type="text" id="tAns" value="Çok mutlu ettin beni! 💕" style="width:100%; padding:10px; margin-bottom:10px;"><br>
-        <button id="genBtn" style="background:#ff4d6d; color:white; border:none; padding:10px; width:100%; border-radius:10px;">Linki Oluştur</button>
-        <p id="finalLink" style="word-break: break-all; margin-top:10px; color:#d62828;"></p>
+        <div class="form-group"><label>İsim:</label><input type="text" id="tName"></div>
+        <div class="form-group"><label>Soru:</label><input type="text" id="tQues" value="Benimle bir kahve içer misin? ☕"></div>
+        <div class="form-group"><label>Evet Cevabı:</label><input type="text" id="tAns" value="Çok mutlu oldum! 😊"></div>
+        <button id="genBtn" style="background-color: #ff4d6d; color: white; width: 100%;">Linki Oluştur</button>
+        <div id="shareBox">
+            <p style="font-size: 12px; color: #777;">Link kopyalandı, gönder!</p>
+            <strong id="finalLink" style="color: #d62828; word-break: break-all;"></strong>
+        </div>
     </div>
 
     <div id="surprisePanel" class="container" style="display: none;">
         <h1 id="qDisplay"></h1>
-        <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+        <div class="btn-container">
             <button id="yesBtn">Evet</button>
             <button id="noBtn">Hayır</button>
         </div>
     </div>
 
     <script>
+        // MÜZİK KODU
+        const audio = new Audio('muzik.mp3'); // Dosya adını buraya yazdım
+        audio.loop = true;
+        document.addEventListener('click', () => { audio.play(); }, { once: true });
+
+        // Yavaş ve göz yormayan kalpler
         function createHeart() {
             const h = document.createElement('div'); h.classList.add('heart'); h.innerHTML = '❤️';
             h.style.left = Math.random() * 100 + 'vw';
-            h.style.animationDuration = (Math.random() * 3 + 3) + 's';
-            document.body.appendChild(h); setTimeout(() => h.remove(), 6000);
+            h.style.animationDuration = (Math.random() * 5 + 7) + 's';
+            document.body.appendChild(h); setTimeout(() => h.remove(), 12000);
         }
+        setInterval(createHeart, 800);
 
         const params = new URLSearchParams(window.location.search);
         if (params.get('isim')) {
@@ -49,21 +65,19 @@
         document.getElementById('genBtn').onclick = () => {
             const link = `${window.location.origin}${window.location.pathname}?isim=${encodeURIComponent(document.getElementById('tName').value)}&soru=${encodeURIComponent(document.getElementById('tQues').value)}&cevap=${encodeURIComponent(document.getElementById('tAns').value)}`;
             document.getElementById('finalLink').innerText = link;
+            document.getElementById('shareBox').style.display = 'block';
+            navigator.clipboard.writeText(link);
         };
 
         document.getElementById('yesBtn').onclick = () => {
-            document.getElementById('surprisePanel').innerHTML = `
-                <img src="https://i.imgur.com/8QzQY9S.png" style="width:150px; margin-bottom:20px;">
-                <h1 style="font-size:28px;">${decodeURIComponent(params.get('cevap'))}</h1>
-            `;
-            setInterval(createHeart, 100); // Daha fazla kalp yağmuru
+            document.getElementById('surprisePanel').innerHTML = `<h1 style="font-size: 32px;">${decodeURIComponent(params.get('cevap'))}</h1>`;
         };
 
         const noBtn = document.getElementById('noBtn');
         noBtn.onmouseover = () => {
             noBtn.style.position = 'fixed';
-            noBtn.style.top = Math.random() * (window.innerHeight - 50) + 'px';
-            noBtn.style.left = Math.random() * (window.innerWidth - 150) + 'px';
+            noBtn.style.top = Math.random() * (window.innerHeight - 60) + 'px';
+            noBtn.style.left = Math.random() * (window.innerWidth - 220) + 'px';
         };
     </script>
 </body>
